@@ -1,0 +1,14 @@
+[
+    {
+        "start_date": "09212014",
+        "end_date": "09212014",
+        "location": "39 rue du Caire 75002 Paris",
+        "lat": "48.867759",
+        "lng": "2.349684",
+        "organization": "Numa Paris",
+        "link": "http://hack4good.io/",
+        "source": "http://truc.com",
+        "title": "Hack4Climate Paris",
+        "description": "Voici un bien bel Hackathon... Ou plutot, un Climathon!"
+    }
+]
