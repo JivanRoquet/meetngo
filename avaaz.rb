@@ -41,4 +41,4 @@ end
 kml.objects << folder
 
 
-File.write('data/avaaz.kml', kml.render)
+File.write('avaaz.kml', kml.render)

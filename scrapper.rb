@@ -6,13 +6,8 @@ require 'nokogiri'
 require 'rest_client'
 
 
-#TODO:
-#Add Avaaz
-#KML export, because Jivan isn't gonna finish his part...
-
-
 MAINTAINER = "Thomas Schneider <teesbase@gmail.com>"
-SOURCES = %w(greepeace_uk avaaz)
+SOURCES = %w(greenpeace_uk gouv_fr)
 
 
 def greenpeace_uk
@@ -34,14 +29,21 @@ def greenpeace_uk
             puts "Greenpeace UK: #{link.text}"
             location_link = div.at_css('.title a')
 
+            if single_date = div.at_css('.date-display-single')
+                start_date = end_date = single_date.text
+            else
+                start_date = div.at_css('.date-display-start').text
+                end_date = div.at_css('.date-display-end').text
+            end
+
             events << {
                 organisation: "Greenpeace UK",
                 source: url,
                 title: link.text,
                 link:  URI.join('http://www.greenpeace.org.uk/', link['href']).to_s,
                 location:  location_link ? location_link.text + ", United Kingdom" : "United Kingdom",
-                start_date:div.at_css('date-display-single').text.split('-').first,
-                end_date: div.at_css('date-display-single').text.split('-').first, #too lazy sorry
+                start_date: start_date,
+                end_date:  end_date,
                 description: div.at_css('.field-body-value').text
             }
         end
@@ -105,6 +107,7 @@ def org350
     end
 end
 
+=end
 
 def gouv_fr
     #because none of the idiots in this group noticed it's April 2014 only
@@ -115,15 +118,15 @@ def gouv_fr
 
         doc = Nokogiri::HTML(event['content'])
         link = doc.at_css('a')
-        _, dates, location = doc.inner_html.split('<br />') #too lazy to find the proper xpath way
+        _, dates, location = doc.inner_html.split('<br>') #too lazy to find the proper xpath way
         start_date = dates #Date.parse will only parse first date
         end_date = dates.split('au').last
 
         {
-            organisation: "",
+            organisation: "Inconnue",
             source: url,
             title: event['title'],
-            location: lines[2] + ", France",
+            location: location + ", France",
             link: URI.join('http://evenements.developpement-durable.gouv.fr/', link['href']).to_s,
             start_date: start_date,
             end_date: end_date,
@@ -134,27 +137,35 @@ def gouv_fr
     end
 end
 
-=end
 
 events = []
 
 #crawls each sources and emails maintainer if fails on one
 SOURCES.each do |source|
-    events |= send(source) rescue RestClient.post "https://api:key-a3aa09958212acb10c11860f49e112f6"\
+    begin
+        events |= send(source)
+    rescue
+        RestClient.post "https://api:key-a3aa09958212acb10c11860f49e112f6"\
         "@api.mailgun.net/v2/sandbox3ede964f239f4b95ab1194ea8659df34.mailgun.org/messages",
           from: "Mailgun Sandbox <postmaster@sandbox3ede964f239f4b95ab1194ea8659df34.mailgun.org>",
           to: MAINTAINER,
           subject: "MeetNGO scrapper: module #{source} no longer works",
           text: "Dear maintainer,\n\nmodule #{source} no longer works so please fix it or remove it for source list.\n\nThanks,\nThe MeetNGO scrapper"
+    end
 end
 
 
-events.foreach do |event|
+events.each do |event|
     event[:start_date] = Date.parse(event[:start_date]).strftime("%m%d%Y") if event[:start_date]
     event[:end_date] = Date.parse(event[:end_date]).strftime("%m%d%Y") if event[:end_date]
 
+    unless event[:lng]
+        response = JSON.parse(open('https://maps.googleapis.com/maps/api/geocode/json?address=' + URI.escape(event[:location])).read)
+        event.merge! response["results"][0]["geometry"]["location"] unless response["results"].empty?
+        sleep 0.1 #10 request/second limit
+    end
+
     event[:hash] = Digest::MD5.hexdigest(event[:source] + event[:title])
 end
-        
 
-File.write('events.json', events.to_json)
+File.write('meetngo/events.json', events.to_json)
