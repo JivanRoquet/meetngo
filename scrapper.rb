@@ -6,13 +6,8 @@ require 'nokogiri'
 require 'rest_client'
 
 
-#TODO:
-#Add Avaaz
-#KML export, because Jivan isn't gonna finish his part...
-
-
 MAINTAINER = "Thomas Schneider <teesbase@gmail.com>"
-SOURCES = %w(greepeace_uk avaaz)
+SOURCES = %w(greenpeace_uk)
 
 
 def greenpeace_uk
@@ -34,14 +29,21 @@ def greenpeace_uk
             puts "Greenpeace UK: #{link.text}"
             location_link = div.at_css('.title a')
 
+            if single_date = div.at_css('.date-display-single')
+                start_date = end_date = single_date.text
+            else
+                start_date = div.at_css('.date-display-start').text
+                end_date = div.at_css('.date-display-end').text
+            end
+
             events << {
                 organisation: "Greenpeace UK",
                 source: url,
                 title: link.text,
                 link:  URI.join('http://www.greenpeace.org.uk/', link['href']).to_s,
                 location:  location_link ? location_link.text + ", United Kingdom" : "United Kingdom",
-                start_date:div.at_css('date-display-single').text.split('-').first,
-                end_date: div.at_css('date-display-single').text.split('-').first, #too lazy sorry
+                start_date: start_date,
+                end_date:  end_date,
                 description: div.at_css('.field-body-value').text
             }
         end
@@ -140,21 +142,27 @@ events = []
 
 #crawls each sources and emails maintainer if fails on one
 SOURCES.each do |source|
-    events |= send(source) rescue RestClient.post "https://api:key-a3aa09958212acb10c11860f49e112f6"\
+    begin
+        events |= send(source)
+    rescue
+        RestClient.post "https://api:key-a3aa09958212acb10c11860f49e112f6"\
         "@api.mailgun.net/v2/sandbox3ede964f239f4b95ab1194ea8659df34.mailgun.org/messages",
           from: "Mailgun Sandbox <postmaster@sandbox3ede964f239f4b95ab1194ea8659df34.mailgun.org>",
           to: MAINTAINER,
           subject: "MeetNGO scrapper: module #{source} no longer works",
           text: "Dear maintainer,\n\nmodule #{source} no longer works so please fix it or remove it for source list.\n\nThanks,\nThe MeetNGO scrapper"
+    end
 end
 
 
-events.foreach do |event|
+events.each do |event|
     event[:start_date] = Date.parse(event[:start_date]).strftime("%m%d%Y") if event[:start_date]
     event[:end_date] = Date.parse(event[:end_date]).strftime("%m%d%Y") if event[:end_date]
 
+    response = JSON.parse(open('https://maps.googleapis.com/maps/api/geocode/json?address=' + URI.escape(event[:location])).read)
+    event.merge! response["results"][0]["geometry"]["location"] unless response["results"].empty?
+
     event[:hash] = Digest::MD5.hexdigest(event[:source] + event[:title])
 end
-        
 
-File.write('events.json', events.to_json)
+File.write('meetngo/events.json', events.to_json)
