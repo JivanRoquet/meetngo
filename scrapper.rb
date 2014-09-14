@@ -7,7 +7,7 @@ require 'rest_client'
 
 
 MAINTAINER = "Thomas Schneider <teesbase@gmail.com>"
-SOURCES = %w(greenpeace_uk)
+SOURCES = %w(greenpeace_uk gouv_fr)
 
 
 def greenpeace_uk
@@ -107,6 +107,7 @@ def org350
     end
 end
 
+=end
 
 def gouv_fr
     #because none of the idiots in this group noticed it's April 2014 only
@@ -117,15 +118,15 @@ def gouv_fr
 
         doc = Nokogiri::HTML(event['content'])
         link = doc.at_css('a')
-        _, dates, location = doc.inner_html.split('<br />') #too lazy to find the proper xpath way
+        _, dates, location = doc.inner_html.split('<br>') #too lazy to find the proper xpath way
         start_date = dates #Date.parse will only parse first date
         end_date = dates.split('au').last
 
         {
-            organisation: "",
+            organisation: "Inconnue",
             source: url,
             title: event['title'],
-            location: lines[2] + ", France",
+            location: location + ", France",
             link: URI.join('http://evenements.developpement-durable.gouv.fr/', link['href']).to_s,
             start_date: start_date,
             end_date: end_date,
@@ -136,7 +137,6 @@ def gouv_fr
     end
 end
 
-=end
 
 events = []
 
@@ -159,8 +159,11 @@ events.each do |event|
     event[:start_date] = Date.parse(event[:start_date]).strftime("%m%d%Y") if event[:start_date]
     event[:end_date] = Date.parse(event[:end_date]).strftime("%m%d%Y") if event[:end_date]
 
-    response = JSON.parse(open('https://maps.googleapis.com/maps/api/geocode/json?address=' + URI.escape(event[:location])).read)
-    event.merge! response["results"][0]["geometry"]["location"] unless response["results"].empty?
+    unless event[:lng]
+        response = JSON.parse(open('https://maps.googleapis.com/maps/api/geocode/json?address=' + URI.escape(event[:location])).read)
+        event.merge! response["results"][0]["geometry"]["location"] unless response["results"].empty?
+        sleep 0.1 #10 request/second limit
+    end
 
     event[:hash] = Digest::MD5.hexdigest(event[:source] + event[:title])
 end
