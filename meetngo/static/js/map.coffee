@@ -14,7 +14,7 @@ $(document).ready ->
         ],
         view : new ol.View({
             center: ol.proj.transform([2.34968, 48.8677594], 'EPSG:4326', 'EPSG:3857'),
-            zoom: 16
+            zoom: 6
         })
     })
 
@@ -26,13 +26,15 @@ $(document).ready ->
 
 meetngo.displayEvents = (events) ->
 
-    vectorSource = new ol.source.Vector({})
+    vectorSource_fr = new ol.source.Vector({})
+    vectorSource_uk = new ol.source.Vector({})
 
     for event in events
         if event.lat and event.lng
             try
                 console.log +event.lat
                 console.log +event.lng
+
                 iconFeature = new ol.Feature({
                   geometry: new ol.geom.Point(ol.proj.transform([+event.lng, +event.lat], 'EPSG:4326', 'EPSG:3857')),
                   organisation: event.organisation,
@@ -44,13 +46,26 @@ meetngo.displayEvents = (events) ->
                   title: event.title
                 })
 
-                vectorSource.addFeature(iconFeature)
+                if event.organisation == "Inconnue"
+                    vectorSource_fr.addFeature(iconFeature)
+                if event.organisation == "Greenpeace UK"
+                    vectorSource_uk.addFeature(iconFeature)
 
             catch error
                 console.log error
 
 
-    iconStyle = new ol.style.Style({
+    iconStyle_fr = new ol.style.Style({
+        image: new ol.style.Icon(({
+            anchor: [0.5, 46],
+            anchorXUnits: 'fraction',
+            anchorYUnits: 'pixels',
+            opacity: 0.75,
+            src: 'http://www.bbeasydreams.it/wp-content/uploads/2014/08/france-flag-icon.jpg'
+        }))
+    })
+
+    iconStyle_uk = new ol.style.Style({
         image: new ol.style.Icon(({
             anchor: [0.5, 46],
             anchorXUnits: 'fraction',
@@ -60,16 +75,26 @@ meetngo.displayEvents = (events) ->
         }))
     })
 
-    vectorLayer = new ol.layer.Vector({
-      source: vectorSource,
-      style: iconStyle
+    vectorLayer_fr = new ol.layer.Vector({
+      source: vectorSource_fr,
+      style: iconStyle_fr
     })
 
-    if meetngo.vl
-        meetngo.map.removeLayer(meetngo.vl)
+    vectorLayer_uk = new ol.layer.Vector({
+      source: vectorSource_uk,
+      style: iconStyle_uk
+    })
 
-    meetngo.vl = vectorLayer
-    meetngo.map.addLayer(meetngo.vl)
+    if meetngo.vl_fr
+        meetngo.map.removeLayer(meetngo.vl_fr)
+
+    if meetngo.vl_uk
+        meetngo.map.removeLayer(meetngo.vl_uk)
+
+    meetngo.vl_fr = vectorLayer_fr
+    meetngo.vl_uk = vectorLayer_uk
+    meetngo.map.addLayer(meetngo.vl_fr)
+    meetngo.map.addLayer(meetngo.vl_uk)
 
 
 meetngo.getEvents = ->
