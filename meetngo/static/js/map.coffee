@@ -35,7 +35,7 @@ meetngo.displayEvents = (events) ->
                 console.log +event.lng
                 iconFeature = new ol.Feature({
                   geometry: new ol.geom.Point(ol.proj.transform([+event.lng, +event.lat], 'EPSG:4326', 'EPSG:3857')),
-                  organization: event.organization,
+                  organisation: event.organisation,
                   start_date: event.start_date,
                   end_date: event.end_date,
                   location: event.location,
@@ -94,7 +94,7 @@ meetngo.getEvents = ->
     y = 0 #Loop event
 
     while y < eventLentgh
-        if events[y].organization is who or who is null #If event organisation is equal or not set
+        if events[y].organisation is who or who is null #If event organisation is equal or not set
           startDate = events[y].start_date
           startDate = startDate[0] + startDate[1] + "/" + startDate[2] + startDate[3] + "/" + startDate[4] + startDate[5] + startDate[6] + startDate[7]
           endDate = events[y].end_date
